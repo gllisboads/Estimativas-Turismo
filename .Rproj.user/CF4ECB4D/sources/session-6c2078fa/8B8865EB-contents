@@ -1,0 +1,192 @@
+---
+title: "Reprodução dos dados"
+author: "Gabriel Luiz Lisboa de Sousa"
+date: "2024-03-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("D:/Documentos 2/CSAP/7º período/TCC/1 Reprodução dados")
+```
+
+
+```{r inicial, echo=FALSE, warning=FALSE,message = FALSE}
+library(PNADcIBGE)
+library(survey)
+library(dplyr)
+
+# Definindo variáveis de interesse - referência: dicionario_PNADC_microdados_2021_visita2_20221031
+#variaveis <- c("S08001", "S08005", "S08011", "S080061", "S08004A", "VDI5007", "VDI5009", "S08001",
+#  "SS08002", "S08018", "S08031", "S08043B", "S08045A", "S08024", "S08037", "S080191", 
+#  "S080321", "S080441", "S080461","VD2002")
+
+
+# Baixando os dados
+#dadosPNADc <- get_pnadc(year=2021, interview = 2, vars = variaveis)
+
+# Salvando e arregando dados (RDS)
+#saveRDS(dadosPNADc, file = "dadosPNADc.RDS")
+dadosPNADc <- readRDS("dadosPNADc.rds")
+
+# Utilizar opção para ajuste de UPAs com único setor
+options(survey.lonely.psu = "adjust")
+
+# Opção de vizualização
+options(scipen = 999)
+
+```
+
+
+## Reprodução dos dados
+
+### 1 Total e proporção de domicílios onde ocorreram viagens
+
+```{r dados1, echo=TRUE, warning=FALSE}
+#Total de domicílios onde ocorreram viagens nos últimos três meses de referência - Minas Gerais - 2021
+tab.1a <- data.frame(Estimativa  = round(coef(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    Erro_padrao = round(SE(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"),na.rm = TRUE)),0),
+                    CV = round(cv(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"),na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"),na.rm = TRUE))[,1],0),
+                    Limite_superior = round(confint(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"),na.rm = TRUE))[,2],0))
+tab.1a
+
+
+#Proporção de domicílios onde ocorreram viagens nos últimos três meses de referência - Minas Gerais - 2021
+tab.1b <- data.frame(Estimativa  = round(coef(svymean(~S08001, dadosPNADc, na.rm = TRUE))*100,1),
+                    Erro_padrao = round(SE(svymean(~S08001, dadosPNADc,na.rm = TRUE))*100,1),
+                    CV = round(cv(svymean(~ ~S08001, dadosPNADc,na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svymean(~S08001, dadosPNADc,na.rm = TRUE))[,1]*100,1),
+                    Limite_superior = round(confint(svymean(~S08001, dadosPNADc,na.rm = TRUE))[,2]*100,1))
+tab.1b
+
+```
+
+### 2 Total e proporção de domicílios por tipo de viagem
+
+
+```{r dados3, echo=TRUE, warning=FALSE}
+
+# Reorganizando as variáveis de interesse em uma única coluna
+tipo_viagem_col <- data.frame(
+  Tipo_Viagem_ = c(dadosPNADc$variables$S08005, dadosPNADc$variables$S08018, dadosPNADc$variables$S08031)
+)
+
+
+# Replicando e reorganizando a variável VD2002 (Condição no domicílio), associada as variáveis de interesse, em uma única coluna
+cond_dom_col <- data.frame(
+  VD2002 = rep(dadosPNADc$variables$VD2002, times = 3)
+)
+
+# Replicando e reorganizando os pesos das variáveis de interesse em uma única coluna
+pesos <- c(rep(dadosPNADc$pweights, times = 3))
+
+# Criando um dataframe com as variáveis de interesse reorganiadas e seus valores correspondentes para VD2002
+df_tipo_viagem <- cbind(tipo_viagem_col, cond_dom_col)
+
+# Criando um novo objeto survey com as variáveis de interesse
+svy_design1 <- svydesign(ids = ~1, weights = ~pesos, data = df_tipo_viagem)
+
+
+# Calculando o total de viagens por tipo de viagem (nacional ou internacional) - 2021
+tab.2a <- data.frame(Estimativa  = round(coef(svytotal(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    Erro_padrao = round(SE(svytotal(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    CV = round(cv(svytotal(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svytotal(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE))[1],0),
+                    Limite_superior = round(confint(svytotal(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE))[2],0))
+tab.2a
+
+
+# Calculando a proporção de viagens por tipo de viagem (nacional ou internacional) - 2021
+tab.2b <- data.frame(Estimativa  = round(coef(svymean(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Erro_padrao = round(SE(svymean(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    CV = round(cv(svymean(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    Limite_inferior = round(confint(svymean(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE))[1]*100,2),
+                    Limite_superior = round(confint(svymean(~ Tipo_Viagem_, subset(svy_design1,VD2002=="Pessoa responsável"), na.rm = TRUE))[2]*100,2))
+tab.2b 
+
+
+```
+
+
+### 3 Finalidade da viagem
+
+```{r dados2, echo=TRUE, warning=FALSE}
+
+# Reorganizando as variáveis de interesse em uma única coluna
+tipo_viagem_col <- data.frame(
+  Finalid_Viagem_ = c(dadosPNADc$variables$S08011, dadosPNADc$variables$S08024, dadosPNADc$variables$S08037)
+)
+
+
+# Replicando e reorganizando a variável VD2002 (Condição no domicílio), associada as variáveis de interesse, em uma única coluna
+cond_dom_col <- data.frame(
+  VD2002 = rep(dadosPNADc$variables$VD2002, times = 3)
+)
+
+# Replicando e reorganizando os pesos das variáveis de interesse em uma única coluna
+pesos <- c(rep(dadosPNADc$pweights, times = 3))
+
+# Criando um dataframe com as variáveis de interesse reorganiadas e seus valores correspondentes para VD2002
+df_tipo_viagem <- cbind(tipo_viagem_col, cond_dom_col)
+
+# Criando um novo objeto survey com as variáveis de interesse
+svy_design2 <- svydesign(ids = ~1, weights = ~pesos, data = df_tipo_viagem)
+
+
+
+
+# Total de viagens por finalidade da viagem - 2021
+
+tab.3a <- data.frame(Estimativa  = round(coef(svytotal(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    Erro_padrao = round(SE(svytotal(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    CV = round(cv(svytotal(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svytotal(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE))[1],0),
+                    Limite_superior = round(confint(svytotal(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE))[2],0))
+tab.3a
+
+# Proporção de viagens por finalidade da viagem - 2021
+
+tab.3b <- data.frame(Estimativa  = round(coef(svymean(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    Erro_padrao = round(SE(svymean(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    CV = round(cv(svymean(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    Limite_inferior = round(confint(svymean(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE))[1]*100,2),
+                    Limite_superior = round(confint(svymean(~ Finalid_Viagem_, subset(svy_design2,VD2002=="Pessoa responsável"), na.rm = TRUE))[2]*100,2))
+tab.3b
+
+```
+
+### 4 Proporção das trê maiores UFs de destino
+
+```{r dados4, echo=TRUE, warning=FALSE}
+# Proporção das três maiores UFs de destino - 2021
+
+
+# Reorganizando as variáveis de interesse em uma única coluna
+nova_coluna <- data.frame(
+  UF_destino_ = c(dadosPNADc$variables$S080061, dadosPNADc$variables$S080191, dadosPNADc$variables$S080321)
+)
+
+# Replicando e reorganizando a variável VD2002 (Condição no domicílio), associada as variáveis de interesse, em uma única coluna
+nova_coluna2 <- data.frame(
+  VD2002 = rep(dadosPNADc$variables$VD2002, times = 3)
+)
+
+# Replicando e reorganizando os pesos das variáveis de interesse em uma única coluna
+pesos <- c(rep(dadosPNADc$pweights, times = 3))
+
+# Criando um dataframe com as variáveis de interesse reorganiadas e seus valores correspondentes para VD2002
+df_novo2 <- cbind(nova_coluna, nova_coluna2)
+
+# Criando um novo objeto survey com as variáveis de interesse
+svy_design <- svydesign(ids = ~1, weights = ~pesos, data = df_novo2)
+
+# Calculando a proporção de viagens para as três UFs com maior número de viagens em realação ao total de UFs
+tab.4b <- data.frame(Estimativa  = round(coef(svymean(~ UF_destino_, subset(svy_design,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Erro_padrao = round(SE(svymean(~ UF_destino_, subset(svy_design,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    CV = round(cv(svymean(~ UF_destino_, subset(svy_design,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    Limite_inferior = round(confint(svymean(~ UF_destino_, subset(svy_design,VD2002=="Pessoa responsável"), na.rm = TRUE))[1]*100,2),
+                    Limite_superior = round(confint(svymean(~ UF_destino_, subset(svy_design,VD2002=="Pessoa responsável"), na.rm = TRUE))[2]*100,2))
+tab.4b <- tab.4b[c("UF_destino_São Paulo","UF_destino_Minas Gerais","UF_destino_Bahia"),]
+
+```
