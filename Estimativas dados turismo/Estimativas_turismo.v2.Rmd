@@ -1,0 +1,236 @@
+---
+title: "Reprodução dos dados"
+author: "Gabriel Luiz Lisboa de Sousa"
+date: "2024-03-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("D:/Documentos 2/CSAP/7º período/TCC/1 Reprodução dados")
+```
+
+
+```{r inicial, echo=FALSE, warning=FALSE,message = FALSE}
+library(PNADcIBGE)
+library(survey)
+library(dplyr)
+
+# Definindo variáveis de interesse - referência: dicionario_PNADC_microdados_2021_visita2_20221031
+#variaveis <- c("S08001", "S08005", "S08011", "S080061", "S08004A", "VDI5007", "VDI5009", "S08001",
+#  "SS08002", "S08018", "S08031", "S08043B", "S08045A", "S08024", "S08037", "S080191", 
+#  "S080321", "S080441", "S080461","VD2002")
+
+
+# Baixando os dados
+#dadosPNADc <- get_pnadc(year=2021, interview = 2, vars = variaveis)
+
+# Salvando e arregando dados (RDS)
+#saveRDS(dadosPNADc, file = "dadosPNADc.RDS")
+dadosPNADc <- readRDS("dadosPNADc.rds")
+
+# Utilizar opção para ajuste de UPAs com único setor
+options(survey.lonely.psu = "adjust")
+
+# Opção de vizualização
+options(scipen = 999)
+
+```
+
+
+```{r dados1, echo=TRUE, warning=FALSE}
+library("tidyr")
+#Adicionando variáveis auxiliáres
+dadosPNADc$variables <- dadosPNADc$variables %>% 
+  mutate(origem = UF,
+         destino1 = S080061,
+         destino2 = S080191,
+         destino3 = S080321,
+         destino4 = S080441,
+         destino5 = S080461,
+         viajou = 1* (S08001 == "Sim"),
+         viagem1 = 1 * (S08005 == "Nacional" | S08005 == "Internacional"),
+         viagem2 = 1* (S08018 == "Nacional" | S08018 == "Internacional"),
+         viagem3 = 1* (S08031 == "Nacional" | S08031 == "Internacional"),
+         viagem4 = 1* (S08043B == "Nacional" | S08043B == "Internacional"),
+         viagem5 = 1* (S08045A == "Nacional" | S08045A == "Internacional"),
+         
+         viagem1 = replace_na(viagem1, 0),
+         viagem2 = replace_na(viagem2, 0),
+         viagem3 = replace_na(viagem3, 0),
+         viagem4 = replace_na(viagem4, 0),
+         viagem5 = replace_na(viagem5, 0),
+         
+        viagem_total = viagem1 + viagem2 +viagem3+ viagem4 +viagem5,
+              
+         )
+svytotal(~viagem_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)
+
+viagem_origem <- svyby(~viagem_total, by = ~origem, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE)
+
+cv(svyby(~viagem_total, by = ~origem, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE))
+
+viagem_Destino <- svyby(~viagem1, by = ~destino1, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE)
+
+cv(svyby(~viagem1, by = ~destino1, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE))
+
+viagem_OrigemDestino <- svyby(~viagem_total, by = ~Origem+Destino, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE)
+
+cv_origemdestino <- cv(svyby(~viagem_total, by = ~Origem+Destino, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE))
+
+
+
+```
+
+## Reprodução dos dados
+
+### 1 Total e proporção de domicílios onde ocorreram viagens
+
+```{r dados1, echo=TRUE, warning=FALSE}
+#Total de domicílios onde ocorreram viagens nos últimos três meses de referência - Minas Gerais - 2021
+tab.1a <- data.frame(Estimativa  = round(coef(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    Erro_padrao = round(SE(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"),na.rm = TRUE)),0),
+                    CV = round(cv(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"),na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"),na.rm = TRUE))[,1],0),
+                    Limite_superior = round(confint(svytotal(~S08001, subset(dadosPNADc,VD2002=="Pessoa responsável"),na.rm = TRUE))[,2],0))
+tab.1a
+
+
+#Proporção de domicílios onde ocorreram viagens nos últimos três meses de referência - Minas Gerais - 2021
+tab.1b <- data.frame(Estimativa  = round(coef(svymean(~S08001, dadosPNADc, na.rm = TRUE))*100,1),
+                    Erro_padrao = round(SE(svymean(~S08001, dadosPNADc,na.rm = TRUE))*100,1),
+                    CV = round(cv(svymean(~ ~S08001, dadosPNADc,na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svymean(~S08001, dadosPNADc,na.rm = TRUE))[,1]*100,1),
+                    Limite_superior = round(confint(svymean(~S08001, dadosPNADc,na.rm = TRUE))[,2]*100,1))
+tab.1b
+
+```
+
+### 2 Total e proporção de domicílios por tipo de viagem
+
+```{r dados3, echo=TRUE, warning=FALSE}
+
+
+
+
+dadosPNADc$variables <- dadosPNADc$variables %>% 
+                        mutate(
+                               dest_nacional = rowSums(cbind(1 * (S08005 == "Nacional"),
+                                                           1 * (S08018 == "Nacional"),
+                                                           1 * (S08031 == "Nacional")),
+                                                           na.rm = TRUE),
+                               dest_internacional = rowSums(cbind(1 * (S08005 == "Internacional"),
+                                                           1 * (S08018 == "Internacional"),
+                                                           1 * (S08031 == "Internacional")),
+                                                           na.rm = TRUE),
+                               via_pessoal = rowSums(cbind(1 * (S08011 == "Pessoal"),
+                                                           1 * (S08024 == "Pessoal"),
+                                                           1 * (S08037 == "Pessoal")),
+                                                           na.rm = TRUE),
+                               via_profissional = rowSums(cbind(1 * (S08011 == "Profissional"),
+                                                           1 * (S08024 == "Profissional"),
+                                                           1 * (S08037 == "Profissional")),
+                                                           na.rm = TRUE),
+                               dest_SP = rowSums(cbind(1 * (S080061 == "São Paulo"),
+                                                           1 * (S080191 == "São Paulo"),
+                                                           1 * (S080321 == "São Paulo")),
+                                                           na.rm = TRUE),
+                               dest_MG = rowSums(cbind(1 * (S080061 == "Minas Gerais"),
+                                                           1 * (S080191 == "Minas Gerais"),
+                                                           1 * (S080321 == "Minas Gerais")),
+                                                           na.rm = TRUE),
+                               dest_BA = rowSums(cbind(1 * (S080061 == "Bahia"),
+                                                           1 * (S080191 == "Bahia"),
+                                                           1 * (S080321 == "Bahia")),
+                                                           na.rm = TRUE),
+                               dest_total = rowSums(cbind(1 * (!is.na(S080061)),
+                                                           1 * (!is.na(S080191)),
+                                                           1 * (!is.na(S080321))),
+                                                           na.rm = TRUE),
+                        )
+
+# dadosPNADc$variables$dest_nacional <- ifelse(dadosPNADc$variables$dest_nacional == 0, NA, dadosPNADc$variables$dest_nacional)
+
+# Calculando o total de viagens por tipo de viagem (nacional ou internacional) - 2021
+tab.2a <- data.frame(Estimativa  = round(coef(svytotal(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    Erro_padrao = round(SE(svytotal(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    CV = round(cv(svytotal(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svytotal(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[1],0),
+                    Limite_superior = round(confint(svytotal(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[2],0))
+tab.2a
+
+
+tab.2a <- tab.2a %>% 
+  mutate(Percentual_Estimativa = round((Estimativa / sum(Estimativa)) * 100, 1))
+
+
+# Calculando a proporção de viagens por tipo de viagem (nacional ou internacional) - 2021
+tab.2b <- data.frame(Estimativa  = round(coef(svymean(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Erro_padrao = round(SE(svymean(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    CV = round(cv(svymean(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    Limite_inferior = round(confint(svymean(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[1]*100,2),
+                    Limite_superior = round(confint(svymean(~ dest_nacional + dest_internacional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[2]*100,2))
+tab.2b 
+
+
+```
+
+### 3 Finalidade da viagem
+
+```{r dados2, echo=TRUE, warning=FALSE}
+
+# Total de viagens por finalidade da viagem - 2021
+
+tab.3a <- data.frame(Estimativa  = round(coef(svytotal(~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    Erro_padrao = round(SE(svytotal(~ ~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    CV = round(cv(svytotal(~ ~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svytotal(~ ~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[1],0),
+                    Limite_superior = round(confint(svytotal(~ ~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[2],0))
+tab.3a
+
+tab.3a <- tab.3a %>% 
+  mutate(Percentual_Estimativa = round((Estimativa / sum(Estimativa)) * 100, 1))
+
+# Proporção de viagens por finalidade da viagem - 2021
+
+tab.3b <- data.frame(Estimativa  = round(coef(svymean(~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    Erro_padrao = round(SE(svymean(~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    CV = round(cv(svymean(~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    Limite_inferior = round(confint(svymean(~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[1]*100,2),
+                    Limite_superior = round(confint(svymean(~ via_pessoal + via_profissional, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[2]*100,2))
+tab.3b
+
+```
+
+### 4 Proporção das trê maiores UFs de destino
+
+```{r dados4, echo=TRUE, warning=FALSE}
+# Proporção das três maiores UFs de destino - 2021
+
+
+# Total de viagens por finalidade da viagem - 2021
+
+tab.4a <- data.frame(Estimativa  = round(coef(svytotal(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    Erro_padrao = round(SE(svytotal(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE)),0),
+                    CV = round(cv(svytotal(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Limite_inferior = round(confint(svytotal(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[1],0),
+                    Limite_superior = round(confint(svytotal(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[2],0))
+tab.4a
+
+tab.4a <- tab.4a %>% 
+  mutate(Percentual_Estimativa = round((Estimativa / Estimativa[4]) * 100, 1))
+
+# Calculando a proporção de viagens para as três UFs com maior número de viagens em realação ao total de UFs
+tab.4b <- data.frame(Estimativa  = round(coef(svymean(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,1),
+                    Erro_padrao = round(SE(svymean(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    CV = round(cv(svymean(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))*100,2),
+                    Limite_inferior = round(confint(svymean(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[1]*100,2),
+                    Limite_superior = round(confint(svymean(~ dest_SP + dest_MG + dest_BA + dest_total, subset(dadosPNADc,VD2002=="Pessoa responsável"), na.rm = TRUE))[2]*100,2))
+tab.4b <- tab.4b[c("UF_destino_São Paulo","UF_destino_Minas Gerais","UF_destino_Bahia"),]
+
+```
+
+### Matriz origem-destino
+
+
+```{r matriz origem-destino, echo=TRUE, warning=FALSE}
