@@ -17,17 +17,17 @@ library(survey)
 library(dplyr)
 
 # Definindo variáveis de interesse - referência: dicionario_PNADC_microdados_2021_visita2_20221031
-#variaveis <- c("S08001", "S08005", "S08011", "S080061", "S08004A", "VDI5007", "VDI5009", "S08001",
-#  "SS08002", "S08018", "S08031", "S08043B", "S08045A", "S08024", "S08037", "S080191", 
-#  "S080321", "S080441", "S080461","VD2002")
+variaveis <- c("S08001", "S08005", "S08011", "S080061", "S08004A", "VDI5007", "VDI5009", "S08001",
+ "SS08002", "S08018", "S08031", "S08043B", "S08045A", "S08024", "S08037", "S080191",
+ "S080321", "S080441", "S080461","VD2002")
 
 
 # Baixando os dados
-#dadosPNADc <- get_pnadc(year=2021, interview = 2, vars = variaveis)
+dadosPNADc <- get_pnadc(year=2021, interview = 2, vars = variaveis, labels = FALSE)
 
 # Salvando e arregando dados (RDS)
 #saveRDS(dadosPNADc, file = "dadosPNADc.RDS")
-dadosPNADc <- readRDS("dadosPNADc.rds")
+dadosPNADc <- readRDS("D:/Documentos 2/CSAP/7º período/TCC/1 Reprodução dados/dadosPNADc.rds")
 
 # Utilizar opção para ajuste de UPAs com único setor
 options(survey.lonely.psu = "adjust")
@@ -42,18 +42,33 @@ options(scipen = 999)
 library("tidyr")
 #Adicionando variáveis auxiliáres
 dadosPNADc$variables <- dadosPNADc$variables %>% 
-  mutate(origem = UF,
-         destino1 = S080061,
-         destino2 = S080191,
-         destino3 = S080321,
-         destino4 = S080441,
-         destino5 = S080461,
-         viajou = 1* (S08001 == "Sim"),
-         viagem1 = 1 * (S08005 == "Nacional" | S08005 == "Internacional"),
-         viagem2 = 1* (S08018 == "Nacional" | S08018 == "Internacional"),
-         viagem3 = 1* (S08031 == "Nacional" | S08031 == "Internacional"),
-         viagem4 = 1* (S08043B == "Nacional" | S08043B == "Internacional"),
-         viagem5 = 1* (S08045A == "Nacional" | S08045A == "Internacional"),
+  mutate(origem = substr(UF, 1, 1),
+         destino1 = substr(S080061, 1, 1),
+         destino2 = substr(S080191, 1, 1),
+         destino3 = substr(S080321, 1, 1),
+         destino4 = substr(S080441, 1, 1),
+         destino5 = substr(S080461, 1, 1),
+         
+         # origem = UF,
+         # destino1 = S080061,
+         # destino2 = S080191,
+         # destino3 = S080321,
+         # destino4 = S080441,
+         # destino5 = S080461,
+         
+        viajou = 1* (S08001 == "Sim"),
+         viagem1 = 1 * (S08005 == "1" | S08005 == "2"),
+         viagem2 = 1* (S08018 == "1" | S08018 == "2"),
+         viagem3 = 1* (S08031 == "1" | S08031 == "2"),
+         viagem4 = 1* (S08043B == "1" | S08043B == "2"),
+         viagem5 = 1* (S08045A == "1" | S08045A == "2"),
+         
+         # viajou = 1* (S08001 == "Sim"),
+         # viagem1 = 1 * (S08005 == "Nacional" | S08005 == "Internacional"),
+         # viagem2 = 1* (S08018 == "Nacional" | S08018 == "Internacional"),
+         # viagem3 = 1* (S08031 == "Nacional" | S08031 == "Internacional"),
+         # viagem4 = 1* (S08043B == "Nacional" | S08043B == "Internacional"),
+         # viagem5 = 1* (S08045A == "Nacional" | S08045A == "Internacional"),
          
          viagem1 = replace_na(viagem1, 0),
          viagem2 = replace_na(viagem2, 0),
@@ -74,9 +89,9 @@ viagem_Destino <- svyby(~viagem1, by = ~destino1, subset(dadosPNADc,VD2002=="Pes
 
 cv(svyby(~viagem1, by = ~destino1, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE))
 
-viagem_OrigemDestino <- svyby(~viagem_total, by = ~Origem+Destino, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE)
+viagem_OrigemDestino <- svyby(~viagem1, by = ~origem+destino1, subset(dadosPNADc,VD2002=="01"), svytotal, na.rm = TRUE)
 
-cv_origemdestino <- cv(svyby(~viagem_total, by = ~Origem+Destino, subset(dadosPNADc,VD2002=="Pessoa responsável"), svytotal, na.rm = TRUE))
+cv_origemdestino <- cv(svyby(~viagem1, by = ~origem+destino1, subset(dadosPNADc,VD2002=="01"), svytotal, na.rm = TRUE))
 
 
 
